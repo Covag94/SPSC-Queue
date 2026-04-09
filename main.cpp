@@ -14,7 +14,7 @@ class SPSCQueue{
         SPSCQueue() : m_buffer(N) {}
 
         bool enqueue(const T& element) { // producer writes
-            const auto current_tail = m_tail.load(std::memory_order_acquire);
+            const auto current_tail = m_tail.load(std::memory_order_relaxed);
             const auto current_head = m_head.load(std::memory_order_acquire);
             const size_t next_tail = (current_tail + 1) % N;
 
@@ -29,16 +29,16 @@ class SPSCQueue{
             return true;
         }
 
-        bool dequeue() { // consumer reads
+        bool dequeue(T& head) { // consumer reads
             const auto current_tail = m_tail.load(std::memory_order_acquire);
-            const auto current_head = m_head.load(std::memory_order_acquire);
+            const auto current_head = m_head.load(std::memory_order_relaxed);
 
             if(current_head == current_tail) {
                 return false;
             }
 
             //std::cout << "Removing element from queue successfully" << std::endl;
-            m_buffer[current_head] = 0;
+            head = m_buffer[current_head];
             const size_t prev_head = (current_head + 1) % N;
             m_head.store(prev_head, std::memory_order_release);
 
@@ -76,14 +76,15 @@ int main() {
 
     std::cout << "After enqueying 3 elements" << std::endl;
     //queue.size();
-    queue.printQueue();
+    //queue.printQueue();
 
     std::cout << "Tail is : " << queue.tail() << "\n";
     std::cout << "Head is : " << queue.head() << "\n";
 
-    queue.dequeue();
-    queue.dequeue();
-    queue.dequeue();
+    int head;
+    queue.dequeue(head);
+    queue.dequeue(head);
+    queue.dequeue(head);
     queue.printQueue();
     std::cout << "Tail is : " << queue.tail() << "\n";
     std::cout << "Head is : " << queue.head() << "\n";
