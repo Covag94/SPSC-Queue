@@ -5,13 +5,15 @@
 template<typename T>
 class SPSCQueue{
     private:
-        std::vector<T> m_buffer{N};
+        static constexpr size_t N = 10;
+        std::vector<T> m_buffer;
         std::atomic<size_t> m_head{0}; // consumer
         std::atomic<size_t> m_tail{0}; // producer
-        static constexpr size_t N = 10;
 
     public:
-        bool enqueue(const T& element) {
+        SPSCQueue() : m_buffer(N) {}
+
+        bool enqueue(const T& element) { // producer writes
             const auto current_tail = m_tail.load(std::memory_order_acquire);
             const auto current_head = m_head.load(std::memory_order_acquire);
             const size_t next_tail = (current_tail + 1) % N;
@@ -20,13 +22,14 @@ class SPSCQueue{
                 return false;
             }
 
+            //std::cout << "Adding element to queue successfully" << std::endl;
             m_buffer[current_tail] = element;
             m_tail.store(next_tail, std::memory_order_release);
 
             return true;
         }
 
-        bool dequeue(T& head_value) {
+        bool dequeue(T& head_value) { // consumer reads
             const auto current_tail = m_tail.load(std::memory_order_acquire);
             const auto current_head = m_head.load(std::memory_order_acquire);
 
@@ -34,6 +37,7 @@ class SPSCQueue{
                 return false;
             }
 
+            //std::cout << "Removing element from queue successfully" << std::endl;
             head_value = m_buffer[current_head];
             const size_t prev_head = (current_head + 1) % N;
             m_head.store(prev_head, std::memory_order_release);
@@ -48,14 +52,31 @@ class SPSCQueue{
         size_t tail() const {
             return m_tail.load(std::memory_order_acquire);
         }
+
+        void printQueue() const {
+            for(const auto elem : m_buffer)
+            {
+                std::cout << "element : " << elem << std::endl;
+            }
+        }
+
+        void size() const {
+            std::cout << "SPSC queue size is : " << m_buffer.size() << std::endl;
+        }
 };
 
 int main() {
     SPSCQueue<int> queue;
-    queue.enqueue(4);
-    queue.enqueue(8);
-    const int x = 1;
+    //queue.size();
+    //queue.printQueue();
+    queue.enqueue(1);
+    queue.enqueue(2);
+    const int x = 3;
     queue.enqueue(x);
+
+    std::cout << "After enqueying 3 elements" << std::endl;
+    //queue.size();
+    queue.printQueue();
 
     std::cout << "Tail is : " << queue.tail() << "\n";
     std::cout << "Head is : " << queue.head() << "\n";
@@ -65,11 +86,21 @@ int main() {
 
     std::cout << "Head after dequing " << head << "\n";
 
-    auto bool1 = queue.dequeue(head);
-    auto bool2 = queue.dequeue(head);
-    auto bool3 = queue.dequeue(head);
+    queue.dequeue(head);
+    std::cout << "Head after dequing " << head << "\n";
+    queue.dequeue(head);
+    std::cout << "Head after dequing " << head << "\n";
+    queue.printQueue();
+    std::cout << "Tail is : " << queue.tail() << "\n";
+    std::cout << "Head is : " << queue.head() << "\n";
 
-    std::cout << "bool 1 : " << bool1 << "\n";
+    queue.enqueue(10);
+    //std::cout << "Head after dequing " << head << "\n";
+    queue.printQueue();
+    std::cout << "Tail is : " << queue.tail() << "\n";
+    std::cout << "Head is : " << queue.head() << "\n";
+
+    /*std::cout << "bool 1 : " << bool1 << "\n";
     std::cout << "bool 2 : " << bool2 << "\n";
     std::cout << "bool 3 : " << bool3 << "\n";
 
@@ -80,5 +111,5 @@ int main() {
 
     std::cout << "After all said and done\n";
     std::cout << "Tail is : " << queue.tail() << "\n";
-    std::cout << "Head is : " << queue.head() << "\n";
+    std::cout << "Head is : " << queue.head() << "\n";*/
 }
